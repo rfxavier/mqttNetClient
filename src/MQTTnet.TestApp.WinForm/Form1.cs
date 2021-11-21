@@ -10,6 +10,7 @@
 namespace MQTTnet.TestApp.WinForm
 {
     using System;
+    using System.IO;
     using System.Text;
     using System.Timers;
     using System.Windows.Forms;
@@ -89,7 +90,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client connected event args.</param>
         private static void OnSubscriberConnected(MqttClientConnectedEventArgs x)
         {
-            MessageBox.Show("Subscriber Connected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Subscriber Connected to iot.agyliti.com.br", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -281,9 +282,11 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="e">The event args.</param>
         private async void ButtonSubscribeClick(object sender, EventArgs e)
         {
-            var topicFilter = new MqttTopicFilter { Topic = this.TextBoxTopicSubscribed.Text.Trim() };
+            var topicFilter = new MqttTopicFilter { Topic = "#" };
             await this.managedMqttClientSubscriber.SubscribeAsync(topicFilter);
-            MessageBox.Show("Topic " + this.TextBoxTopicSubscribed.Text.Trim() + " is subscribed", "Notice", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("Topic # is subscribed", "Notice", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            lblSubscribed.Text = "Subscribed to topic #";
+            lblSubscribed.Visible = true;
         }
 
         /// <summary>
@@ -306,7 +309,7 @@ namespace MQTTnet.TestApp.WinForm
                 ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
-                    Server = "localhost", Port = int.Parse(this.TextBoxPort.Text.Trim()), TlsOptions = tlsOptions
+                    Server = "iot.agyliti.com.br", Port = int.Parse(this.TextBoxPort.Text.Trim()), TlsOptions = tlsOptions
                 }
             };
 
@@ -317,8 +320,8 @@ namespace MQTTnet.TestApp.WinForm
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username",
-                Password = Encoding.UTF8.GetBytes("password")
+                Username = "agyliti",
+                Password = Encoding.UTF8.GetBytes("C4m4l340@")
             };
 
             options.CleanSession = true;
@@ -368,8 +371,42 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT application message received event args.</param>
         private void OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs x)
         {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {x.ApplicationMessage.Topic} | Payload: {x.ApplicationMessage.ConvertPayloadToString()} | QoS: {x.ApplicationMessage.QualityOfServiceLevel}";
-            this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item + Environment.NewLine + this.TextBoxSubscriber.Text; });
+            var now = DateTime.Now;
+
+            var dateTimeNow = $"{now:O}";
+
+            var item = $"Timestamp: {dateTimeNow} | Topic: {x.ApplicationMessage.Topic} | Payload: {x.ApplicationMessage.ConvertPayloadToString()}";
+
+            var topicPrefix = x.ApplicationMessage.Topic.Split("/")[0];
+
+            var fileName = topicPrefix + "_" + dateTimeNow.Replace("-","").Replace(":", "").Replace(".", "") + ".txt";
+
+            var year = now.Year.ToString("0000");
+            var month = now.Month.ToString("00");
+            var day = now.Day.ToString("00");
+            var hour = now.Hour.ToString("00");
+
+            var fullPath = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}");
+            var fullFileName = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}", fileName);
+
+            try
+            {
+                var content = "Message;Topic" + Environment.NewLine + x.ApplicationMessage.ConvertPayloadToString() + ";" + x.ApplicationMessage.Topic;
+                DirectoryInfo di = Directory.CreateDirectory(fullPath);
+                File.WriteAllText(fullFileName, content);
+                //lblFileErr.Visible = false;
+            }
+            catch (Exception ex)
+            {
+                this.BeginInvoke((MethodInvoker)delegate { this.lblFileErr.Visible = true; this.lblFileErr.Text = $"Error writing file: {@fullFileName}"; });
+            }
+
+            this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item; });
+        }
+
+        private string getPathFromTopicPrefix(string topicPrefix)
+        {
+            return ".";
         }
 
         /// <summary>
@@ -416,5 +453,12 @@ namespace MQTTnet.TestApp.WinForm
                     this.ButtonSubscriberStop.Enabled = this.managedMqttClientSubscriber != null;
                 });
         }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            ButtonSubscriberStartClick(sender, e);
+            ButtonSubscribeClick(sender, e);
+        }
+
     }
 }
