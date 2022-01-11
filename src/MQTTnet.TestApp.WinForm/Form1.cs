@@ -10,8 +10,10 @@
 namespace MQTTnet.TestApp.WinForm
 {
     using System;
+    using System.Data.SqlClient;
     using System.IO;
     using System.Text;
+    using System.Threading.Tasks;
     using System.Timers;
     using System.Windows.Forms;
 
@@ -23,7 +25,7 @@ namespace MQTTnet.TestApp.WinForm
     using MQTTnet.Formatter;
     using MQTTnet.Protocol;
     using MQTTnet.Server;
-
+    using Newtonsoft.Json;
     using Timer = System.Timers.Timer;
 
     /// <summary>
@@ -160,7 +162,7 @@ namespace MQTTnet.TestApp.WinForm
                 ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
-                    Server = "localhost", Port = int.Parse(this.TextBoxPort.Text.Trim()), TlsOptions = tlsOptions
+                    Server = "iot.agyliti.com.br", Port = int.Parse(this.TextBoxPort.Text.Trim()), TlsOptions = tlsOptions
                 }
             };
 
@@ -171,7 +173,7 @@ namespace MQTTnet.TestApp.WinForm
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username", Password = Encoding.UTF8.GetBytes("password")
+                Username = "agyliti", Password = Encoding.UTF8.GetBytes("C4m4l340@")
             };
 
             options.CleanSession = true;
@@ -282,10 +284,10 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="e">The event args.</param>
         private async void ButtonSubscribeClick(object sender, EventArgs e)
         {
-            var topicFilter = new MqttTopicFilter { Topic = "#" };
+            var topicFilter = new MqttTopicFilter { Topic = "/#" };
             await this.managedMqttClientSubscriber.SubscribeAsync(topicFilter);
             //MessageBox.Show("Topic # is subscribed", "Notice", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            lblSubscribed.Text = "Subscribed to topic #";
+            lblSubscribed.Text = "Subscribed to topic /#";
             lblSubscribed.Visible = true;
         }
 
@@ -379,29 +381,94 @@ namespace MQTTnet.TestApp.WinForm
 
             var topicPrefix = x.ApplicationMessage.Topic.Split("/")[0];
 
-            var fileName = topicPrefix + "_" + dateTimeNow.Replace("-","").Replace(":", "").Replace(".", "") + ".txt";
-
-            var year = now.Year.ToString("0000");
-            var month = now.Month.ToString("00");
-            var day = now.Day.ToString("00");
-            var hour = now.Hour.ToString("00");
-
-            var fullPath = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}");
-            var fullFileName = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}", fileName);
-
-            try
+            if (topicPrefix == "" && x.ApplicationMessage.Topic.Substring(Math.Max(0, x.ApplicationMessage.Topic.Length - 8)).ToUpper() == "/MESSAGE")
             {
-                var content = "Message;Topic" + Environment.NewLine + x.ApplicationMessage.ConvertPayloadToString() + ";" + x.ApplicationMessage.Topic;
-                DirectoryInfo di = Directory.CreateDirectory(fullPath);
-                File.WriteAllText(fullFileName, content);
-                //lblFileErr.Visible = false;
-            }
-            catch (Exception ex)
-            {
-                this.BeginInvoke((MethodInvoker)delegate { this.lblFileErr.Visible = true; this.lblFileErr.Text = $"Error writing file: {@fullFileName}"; });
-            }
+                string idCofre = "";
 
-            this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item; });
+                string[] splicedTopic = x.ApplicationMessage.Topic.Split('/', StringSplitOptions.None);
+
+                if (splicedTopic.Length > 1)
+                {
+                    idCofre = splicedTopic[1];
+                }
+
+                dynamic payload = JsonConvert.DeserializeObject(x.ApplicationMessage.ConvertPayloadToString());
+
+                string infoId = payload.INFO.ID;
+                string dataHash = payload.DATA.HASH;
+                string dataType = payload.DATA.TYPE;
+
+                SqlConnection conn = new SqlConnection(@"Server=localhost;Database=getlock;User Id=rx;Password=C102030c#;");
+                conn.Open();
+
+                SqlCommand command = new SqlCommand("Select id_cofre, info_id, data_hash, trackCreationTime, trackLastWriteTime from message where id_cofre=@idCofre and info_id=@infoId and data_hash=@dataHash", conn);
+                command.Parameters.AddWithValue("@idCofre", idCofre);
+                command.Parameters.AddWithValue("@infoId", infoId);
+                command.Parameters.AddWithValue("@dataHash", dataHash);
+
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                    {
+                        reader.Close();
+
+                        string insert_query = "insert into message (id_cofre, info_id, data_hash) values (@idCofre, @infoId ,@dataHash)";
+                        SqlCommand cmd = new SqlCommand(insert_query, conn);
+                        cmd.Parameters.AddWithValue("@idCofre", idCofre);
+                        cmd.Parameters.AddWithValue("@infoId", infoId);
+                        cmd.Parameters.AddWithValue("@dataHash", dataHash);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                conn.Close();
+
+                try
+                {
+                    var ackTopic = $"/{idCofre}/COMMAND";
+                    var ackPayload = $@"{{ ""ACK"": {{ ""HASH"":""{dataHash}"", ""TYPE"":{dataType} }} }}";
+                    var message = new MqttApplicationMessageBuilder().WithTopic(ackTopic).WithPayload(ackPayload).WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce).WithRetainFlag().Build();
+
+                    if (this.managedMqttClientPublisher != null)
+                    {
+                        Task.Run(async () => await this.managedMqttClientPublisher.PublishAsync(message));
+                        //await this.managedMqttClientPublisher.PublishAsync(message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Error Occurs", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+
+                string dummy = "";
+            }
+            else 
+            {
+                var fileName = topicPrefix + "_" + dateTimeNow.Replace("-", "").Replace(":", "").Replace(".", "") + ".txt";
+
+                var year = now.Year.ToString("0000");
+                var month = now.Month.ToString("00");
+                var day = now.Day.ToString("00");
+                var hour = now.Hour.ToString("00");
+
+                var fullPath = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}");
+                var fullFileName = Path.Combine("..", topicPrefix, "fileHandling", "incoming", $"{year}", $"{month}", $"{day}", $"{hour}", fileName);
+
+                try
+                {
+                    var content = "Message;Topic" + Environment.NewLine + x.ApplicationMessage.ConvertPayloadToString() + ";" + x.ApplicationMessage.Topic;
+                    DirectoryInfo di = Directory.CreateDirectory(fullPath);
+                    File.WriteAllText(fullFileName, content);
+                    //lblFileErr.Visible = false;
+                }
+                catch (Exception ex)
+                {
+                    this.BeginInvoke((MethodInvoker)delegate { this.lblFileErr.Visible = true; this.lblFileErr.Text = $"Error writing file: {@fullFileName}"; });
+                }
+
+                this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item; });
+            }
         }
 
         private string getPathFromTopicPrefix(string topicPrefix)
@@ -458,6 +525,8 @@ namespace MQTTnet.TestApp.WinForm
         {
             ButtonSubscriberStartClick(sender, e);
             ButtonSubscribeClick(sender, e);
+
+            ButtonPublisherStartClick(sender, e);
         }
 
     }
