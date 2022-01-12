@@ -74,7 +74,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client connected event args.</param>
         private static void OnPublisherConnected(MqttClientConnectedEventArgs x)
         {
-            MessageBox.Show("Publisher Connected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("Publisher Connected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client disconnected event args.</param>
         private static void OnPublisherDisconnected(MqttClientDisconnectedEventArgs x)
         {
-            MessageBox.Show("Publisher Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("Publisher Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client connected event args.</param>
         private static void OnSubscriberConnected(MqttClientConnectedEventArgs x)
         {
-            MessageBox.Show("Subscriber Connected to iot.agyliti.com.br", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("Subscriber Connected to iot.agyliti.com.br", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client disconnected event args.</param>
         private static void OnSubscriberDisconnected(MqttClientDisconnectedEventArgs x)
         {
-            MessageBox.Show("Subscriber Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("Subscriber Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -392,11 +392,27 @@ namespace MQTTnet.TestApp.WinForm
                     idCofre = splicedTopic[1];
                 }
 
-                dynamic payload = JsonConvert.DeserializeObject(x.ApplicationMessage.ConvertPayloadToString());
+                dynamic payload = JsonConvert.DeserializeObject(x.ApplicationMessage.ConvertPayloadToString().Replace("\"$", "\"R"));
 
                 string infoId = payload.INFO.ID;
+                string infoIp = payload.INFO.IP;
+                string infoMac = payload.INFO.MAC;
+                string infoJson = payload.INFO.JSON;
+                
                 string dataHash = payload.DATA.HASH;
+                string dataTmstBegin = payload.DATA.TMST_BEGIN;
+                string dataTmstEnd = payload.DATA.TMST_END;
+                string dataUser = payload.DATA.USER;
                 string dataType = payload.DATA.TYPE;
+                string dataCurrencyTotal = payload.DATA.RTOTAL;
+                string dataCurrencyB2 = payload.DATA.R2;
+                string dataCurrencyB5 = payload.DATA.R5;
+                string dataCurrencyB10 = payload.DATA.R10;
+                string dataCurrencyB20 = payload.DATA.R20;
+                string dataCurrencyB50 = payload.DATA.R50;
+                string dataCurrencyB100 = payload.DATA.R100;
+                string dataCurrencyB200 = payload.DATA.R200;
+                string dataCurrencyBREJ = payload.DATA.RREJ;
 
                 SqlConnection conn = new SqlConnection(@"Server=localhost;Database=getlock;User Id=rx;Password=C102030c#;");
                 conn.Open();
@@ -413,6 +429,7 @@ namespace MQTTnet.TestApp.WinForm
                         reader.Close();
 
                         string insert_query = "insert into message (id_cofre, info_id, data_hash) values (@idCofre, @infoId ,@dataHash)";
+                        string insert_query2 = "INSERT INTO message (id_cofre, info_id, info_ip, info_mac, info_json, data_hash, data_tmst_begin, data_tmst_end, data_user, data_type, data_currency_total, data_currency_bill_2, data_currency_bill_5, data_currency_bill_10, data_currency_bill_20, data_currency_bill_50, data_currency_bill_100, data_currency_bill_200, data_currency_bill_rejected, data_currency_envelope, data_currency_envelope_total) VALUES (<id_cofre, nvarchar(50),>, <info_id, nvarchar(50),>, <info_ip, nvarchar(50),>, <info_mac, nvarchar(50),>, <info_json, nvarchar(50),>, <data_hash, nvarchar(50),>, <data_tmst_begin, nvarchar(50),>, <data_tmst_end, nvarchar(50),>, <data_user, nvarchar(50),>, <data_type, nvarchar(50),>, <data_currency_total, numeric(18,2),>, <data_currency_bill_2, bigint,>, <data_currency_bill_5, bigint,>, <data_currency_bill_10, bigint,>, <data_currency_bill_20, bigint,>, <data_currency_bill_50, bigint,>, <data_currency_bill_100, bigint,>, <data_currency_bill_200, bigint,>, <data_currency_bill_rejected, bigint,>, <data_currency_envelope, bigint,>, <data_currency_envelope_total, numeric(18,2),>)";
                         SqlCommand cmd = new SqlCommand(insert_query, conn);
                         cmd.Parameters.AddWithValue("@idCofre", idCofre);
                         cmd.Parameters.AddWithValue("@infoId", infoId);
