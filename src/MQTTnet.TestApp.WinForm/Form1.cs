@@ -72,7 +72,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client connected event args.</param>
         private static void OnPublisherConnected(MqttClientConnectedEventArgs x)
         {
-            MessageBox.Show("Publisher Connected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // MessageBox.Show("Publisher Connected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client disconnected event args.</param>
         private static void OnPublisherDisconnected(MqttClientDisconnectedEventArgs x)
         {
-            MessageBox.Show("Publisher Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // MessageBox.Show("Publisher Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client connected event args.</param>
         private static void OnSubscriberConnected(MqttClientConnectedEventArgs x)
         {
-            MessageBox.Show("Subscriber Connected to iot.agyliti.com.br", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // MessageBox.Show("Subscriber Connected to iot.agyliti.com.br", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace MQTTnet.TestApp.WinForm
         /// <param name="x">The MQTT client disconnected event args.</param>
         private static void OnSubscriberDisconnected(MqttClientDisconnectedEventArgs x)
         {
-            MessageBox.Show("Subscriber Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // MessageBox.Show("Subscriber Disconnected", "ConnectHandler", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
